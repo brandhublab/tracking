@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>기록</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #FBF7EE;
+    color: #3D352E;
+  }
+  #root { min-height: 100vh; }
+  button { font-family: inherit; }
+  input, textarea { font-family: inherit; }
+  .__loading {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; color: #A89B8C;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div id="root"><div class="__loading">loading...</div></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+// ============ localStorage polyfill (mimics window.storage API) ============
+const storage = {
+  get: async (key) => {
+    try {
+      const v = localStorage.getItem(key);
+      return v !== null ? { value: v } : null;
+    } catch (e) { return null; }
+  },
+  set: async (key, value) => {
+    try { localStorage.setItem(key, String(value)); return { value: String(value) }; }
+    catch (e) { return null; }
+  },
+  delete: async (key) => {
+    try { localStorage.removeItem(key); return { deleted: true }; }
+    catch (e) { return null; }
+  }
+};
+window.storage = storage;
+
+// ============ Icons (inline SVG, lucide-compatible) ============
+const Icon = ({ size = 16, color = 'currentColor', children, style, ...rest }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+       fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+       style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }} {...rest}>
+    {children}
+  </svg>
+);
+const Lock = (p) => <Icon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Icon>;
+const Unlock = (p) => <Icon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></Icon>;
+const Circle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/></Icon>;
+const ChevronLeft = (p) => <Icon {...p}><path d="m15 18-6-6 6-6"/></Icon>;
+const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6"/></Icon>;
+const Calendar = (p) => <Icon {...p}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></Icon>;
+const CalIcon = Calendar;
+const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></Icon>;
+const Plus = (p) => <Icon {...p}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+const X = (p) => <Icon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+const Target = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></Icon>;
+const TrendingUp = (p) => <Icon {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></Icon>;
+const CheckCircle2 = (p) => <Icon {...p}><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></Icon>;
+const ListChecks = (p) => <Icon {...p}><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></Icon>;
+const Sparkles = (p) => <Icon {...p}><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></Icon>;
+const Quote = (p) => <Icon {...p}><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></Icon>;
+const Flame = (p) => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></Icon>;
+const Trophy = (p) => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Icon>;
+const KeyRound = (p) => <Icon {...p}><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></Icon>;
+const Eye = (p) => <Icon {...p}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></Icon>;
+const EyeOff = (p) => <Icon {...p}><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></Icon>;
+const Shield = (p) => <Icon {...p}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></Icon>;
+
+// ============ Theme ============
+const T = {
+  bg: '#FBF7EE',
+  card: '#FFFCF5',
+  cardWhite: '#FFFFFF',
+  accent: '#D4823F',
+  accentSoft: '#FBE6D2',
+  accentDeep: '#B5651E',
+  ink: '#3D352E',
+  inkSoft: '#7D6F62',
+  inkFaint: '#A89B8C',
+  border: '#EFE4D0',
+  borderSoft: '#F5EDDD',
+  success: '#7BA679',
+  successSoft: '#E4EFDF',
+  warn: '#C99A4D',
+  warnSoft: '#F5E8CB',
+  rose: '#C56B6B',
+  roseSoft: '#F2DFDF',
+};
+
+const fontDisplay = "'Gowun Batang', 'Noto Serif KR', 'Apple SD Gothic Neo', serif";
+const fontEN = "'Cormorant Garamond', 'Georgia', serif";
+const fontBody = "'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif";
+
+// ============ Config ============
+const pw = '2029';
+const UNLOCK_KEY = 'warmrel-planner-unlock-v2';
+const DATA_KEY = 'warmrel-planner-v2';
+const UNLOCK_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
+// ============ Helpers ============
+const pad = (n) => String(n).padStart(2, '0');
+const formatKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const todayKey = () => formatKey(new Date());
+const parseKey = (key) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d); };
+const formatKorean = (key) => {
+  const date = parseKey(key);
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  return {
+    full: `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`,
+    long: `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`,
+    day: `${days[date.getDay()]}요일`,
+    short: `${date.getMonth() + 1}/${date.getDate()}`
+  };
+};
+const addDays = (key, days) => { const d = parseKey(key); d.setDate(d.getDate() + days); return formatKey(d); };
+const getRecentKeys = (n, fromKey = todayKey()) => {
+  const keys = [];
+  for (let i = 0; i < n; i++) keys.push(addDays(fromKey, -i));
+  return keys;
+};
+const getMonthKeys = (key = todayKey()) => {
+  const d = parseKey(key);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const keys = [];
+  for (let i = 1; i <= last; i++) keys.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(i)}`);
+  return keys;
+};
+const daysLeft = (futureMs) => Math.max(0, Math.ceil((futureMs - Date.now()) / (24 * 60 * 60 * 1000)));
+
+const emptyDay = () => ({
+  oneGoal: { text: '', completed: false },
+  tasks: [],
+  journal: '',
+  wins: [],
+  blockers: [],
+  shifts: [],
+  insight: ''
+});
+
+// ============ Seed ============
+const SEED = {
+  '2026-04-27': {
+    oneGoal: {
+      text: '신규 카테고리에서 광고 돌리고 있는 브랜드 5~10개 발굴 + 광고 카피·소재·랜딩 패턴 정리',
+      completed: false
+    },
+    tasks: [
+      { id: 's1', text: '7/30 출시 역산 일정표 작성 (D-94 → D-Day)', completed: false },
+      { id: 's2', text: '5월 기존 브랜드 행사 기획 — 현금 회수 목적', completed: false },
+      { id: 's3', text: '기존 브랜드 뉴스레터 1회 발송 — 비용 0원 검증', completed: false },
+      { id: 's4', text: '광고 가설 도출 (제품 기획보다 광고 가설이 먼저)', completed: false }
+    ],
+    insight: '확신은 머리에서 만들어지지 않는다. 광고에서 만들어진다.',
+    journal: '오늘의 핵심 — 순서가 거꾸로였다. 제품 → 광고가 아니라 광고 → 제품으로 가야 한다. 광고 가능성을 먼저 검증하지 않으면, 제품을 잘 만들어도 막히는 지점이 광고에서 터진다. 4개월 정체의 진짜 원인은 완벽주의가 아니라 검증 단계 누락이었다. 7/30 출시 역산하면 진짜 데드라인은 5월 초 처방 결정.',
+    wins: [
+      '4개월 정체의 진짜 원인을 발견함 — 검증 단계 누락',
+      '메타 광고 라이브러리에서 시장 지형도 발견',
+      '광고 우선 사고로 명확히 전환'
+    ],
+    blockers: [
+      '확신을 내적 사고에서 만들려는 습관',
+      '큰 경쟁사 보고 위축되는 비교 패턴',
+      '매몰비용 인지 왜곡 — 미루는 시간이 다시 비용이 됨',
+      '단독 결정의 외로움 — 외부 대화 빈도 부족'
+    ],
+    shifts: [
+      '완벽한 아이템 찾기 → 광고 가능한 아이템 찾기',
+      '광고 후 피봇 → 광고 검증 후 진입',
+      '진짜 데드라인 재인식: 7/30 출시 = 5월 초 처방 결정'
+    ]
+  }
+};
+
+// ============ Shared Styles ============
+const cardStyle = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 14,
+  padding: 16,
+  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+};
+const subEN = {
+  fontFamily: fontEN,
+  fontSize: 11,
+  letterSpacing: '0.18em',
+  color: T.inkFaint,
+  textTransform: 'uppercase',
+  fontWeight: 600,
+  marginBottom: 0
+};
+const primaryBtn = {
+  background: T.accent, color: '#fff', border: 'none',
+  borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13,
+  cursor: 'pointer', fontFamily: fontBody
+};
+const ghostBtn = {
+  background: 'transparent', color: T.inkSoft,
+  border: `1px solid ${T.border}`, borderRadius: 8,
+  padding: '9px 14px', fontSize: 13, cursor: 'pointer', fontFamily: fontBody
+};
+const navBtn = {
+  background: T.bg,
+  border: `1px solid ${T.border}`,
+  borderRadius: 9,
+  padding: 8,
+  cursor: 'pointer',
+  color: T.ink,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+};
+
+// ============ Root ============
+function App() {
+  const [authed, setAuthed] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [unlockExpiry, setUnlockExpiry] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.storage.get(UNLOCK_KEY);
+        if (r && r.value) {
+          const expiry = parseInt(r.value, 10);
+          if (expiry && expiry > Date.now()) {
+            setAuthed(true);
+            setUnlockExpiry(expiry);
+          }
+        }
+      } catch (e) { }
+      setChecking(false);
+    })();
+  }, []);
+
+  async function handleAuth(remember30) {
+    if (remember30) {
+      const expiry = Date.now() + UNLOCK_DURATION_MS;
+      try { await window.storage.set(UNLOCK_KEY, String(expiry)); } catch (e) { }
+      setUnlockExpiry(expiry);
+    } else {
+      setUnlockExpiry(null);
+    }
+    setAuthed(true);
+  }
+
+  async function handleLock() {
+    try { await window.storage.delete(UNLOCK_KEY); } catch (e) { }
+    setUnlockExpiry(null);
+    setAuthed(false);
+  }
+
+  if (checking) {
+    return <div style={{ background: T.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: fontEN, fontStyle: 'italic', color: T.inkFaint }}>loading...</div>;
+  }
+
+  if (!authed) return <PasswordGate onAuth={handleAuth} />;
+  return <WisePlanner unlockExpiry={unlockExpiry} onLock={handleLock} />;
+}
+
+// ============ Password Gate ============
+function PasswordGate({ onAuth }) {
+  const [input, setInput] = useState('');
+  const [show, setShow] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [error, setError] = useState('');
+  const [shake, setShake] = useState(false);
+
+  function submit(e) {
+    if (e) e.preventDefault();
+    if (input === pw) {
+      setError('');
+      onAuth(remember);
+    } else {
+      setError('비밀번호가 일치하지 않습니다');
+      setShake(true);
+      setInput('');
+      setTimeout(() => setShake(false), 500);
+    }
+  }
+
+  return (
+    <div style={{
+      background: T.bg, minHeight: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24, fontFamily: fontBody,
+      backgroundImage: `radial-gradient(ellipse at top, ${T.accentSoft}55 0%, transparent 50%), radial-gradient(ellipse at bottom right, ${T.warnSoft}66 0%, transparent 50%)`
+    }}>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-8px); }
+          75% { transform: translateX(8px); }
+        }
+        .shake-it { animation: shake 0.4s ease; }
+      `}</style>
+
+      <div className={shake ? 'shake-it' : ''} style={{
+        width: '100%', maxWidth: 400,
+        background: T.cardWhite,
+        border: `1px solid ${T.border}`,
+        borderRadius: 18,
+        padding: '36px 28px',
+        boxShadow: '0 8px 30px rgba(61, 53, 46, 0.06), 0 1px 3px rgba(0,0,0,0.03)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: T.accentSoft, color: T.accent,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px'
+          }}>
+            <KeyRound size={26} />
+          </div>
+          <div style={{ fontFamily: fontDisplay, fontSize: 22, fontWeight: 700, color: T.ink, lineHeight: 1.4 }}>
+            기록
+          </div>
+        </div>
+
+        <form onSubmit={submit}>
+          <div style={{ position: 'relative', marginBottom: 14 }}>
+            <input
+              type={show ? 'text' : 'password'}
+              value={input}
+              onChange={e => { setInput(e.target.value); if (error) setError(''); }}
+              placeholder="비밀번호"
+              autoFocus
+              style={{
+                width: '100%', padding: '14px 44px 14px 16px',
+                border: `1px solid ${error ? T.rose : T.border}`,
+                borderRadius: 11,
+                background: T.bg, fontSize: 15,
+                fontFamily: fontBody, color: T.ink,
+                outline: 'none',
+                letterSpacing: show ? 'normal' : '0.3em',
+                transition: 'border-color 0.2s'
+              }}
+            />
+            <button type="button" onClick={() => setShow(s => !s)} style={{
+              position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', color: T.inkFaint,
+              cursor: 'pointer', padding: 4, display: 'flex'
+            }}>
+              {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {error && (
+            <div style={{
+              padding: '8px 12px', marginBottom: 14,
+              background: T.roseSoft, color: T.rose,
+              borderRadius: 8, fontSize: 13,
+              display: 'flex', alignItems: 'center', gap: 8
+            }}>
+              <AlertCircle size={14} />
+              {error}
+            </div>
+          )}
+
+          <label style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '12px 14px', marginBottom: 18,
+            background: T.bg, borderRadius: 10,
+            cursor: 'pointer', userSelect: 'none',
+            border: `1px solid ${T.borderSoft}`
+          }}>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={e => setRemember(e.target.checked)}
+              style={{ marginTop: 2, accentColor: T.accent, cursor: 'pointer' }}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Shield size={12} color={T.accent} />
+                30일간 잠금 해제
+              </div>
+              <div style={{ fontSize: 11, color: T.inkFaint, marginTop: 2, lineHeight: 1.5 }}>
+                이 기기에서 30일 동안 비밀번호를 묻지 않습니다
+              </div>
+            </div>
+          </label>
+
+          <button type="submit" disabled={!input} style={{
+            width: '100%', padding: '13px 16px',
+            background: input ? T.accent : T.borderSoft,
+            color: input ? '#fff' : T.inkFaint,
+            border: 'none', borderRadius: 11,
+            fontWeight: 600, fontSize: 15,
+            cursor: input ? 'pointer' : 'not-allowed',
+            fontFamily: fontBody,
+            transition: 'all 0.2s',
+            boxShadow: input ? '0 2px 10px rgba(212,130,63,0.25)' : 'none'
+          }}>
+            확인
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============ Main Planner ============
+function WisePlanner({ unlockExpiry, onLock }) {
+  const [view, setView] = useState('today');
+  const [date, setDate] = useState(todayKey());
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.storage.get(DATA_KEY);
+        if (r && r.value) {
+          setData(JSON.parse(r.value));
+        } else {
+          await window.storage.set(DATA_KEY, JSON.stringify(SEED));
+          setData(SEED);
+        }
+      } catch (e) {
+        try {
+          await window.storage.set(DATA_KEY, JSON.stringify(SEED));
+          setData(SEED);
+        } catch (e2) { setData(SEED); }
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  async function persist(next) {
+    setData(next);
+    try { await window.storage.set(DATA_KEY, JSON.stringify(next)); } catch (e) { }
+  }
+
+  function updateDay(key, updater) {
+    const cur = data[key] || emptyDay();
+    persist({ ...data, [key]: updater(cur) });
+  }
+
+  if (loading) {
+    return <div style={{ background: T.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: fontEN, fontStyle: 'italic', color: T.inkFaint }}>loading...</div>;
+  }
+
+  return (
+    <div style={{ background: T.bg, color: T.ink, minHeight: '100vh', paddingBottom: 80, fontFamily: fontBody, fontSize: 14, lineHeight: 1.7 }}>
+      <Header view={view} setView={setView} date={date} setDate={setDate} unlockExpiry={unlockExpiry} onLock={onLock} />
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '16px' }}>
+        {view === 'today' && <TodayView dayData={data[date] || emptyDay()} dateKey={date} updateDay={updateDay} />}
+        {view === 'week' && <WeekView data={data} fromKey={date} setDate={(k) => { setDate(k); setView('today'); }} />}
+        {view === 'month' && <MonthView data={data} fromKey={date} setDate={(k) => { setDate(k); setView('today'); }} />}
+        {view === 'history' && <HistoryView data={data} setDate={(k) => { setDate(k); setView('today'); }} />}
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+// ============ Header ============
+function Header({ view, setView, date, setDate, unlockExpiry, onLock }) {
+  const k = formatKorean(date);
+  const isToday = date === todayKey();
+  const dleft = unlockExpiry ? daysLeft(unlockExpiry) : null;
+
+  return (
+    <div style={{ background: T.cardWhite, borderBottom: `1px solid ${T.border}`, padding: '12px 16px 14px', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 0 rgba(0,0,0,0.02)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 10, fontSize: 11, color: T.inkFaint,
+          fontFamily: fontEN, fontStyle: 'italic', letterSpacing: '0.08em'
+        }}>
+          <span>warmrel · private</span>
+          <button onClick={onLock} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            background: T.bg, border: `1px solid ${T.borderSoft}`,
+            borderRadius: 100, padding: '3px 10px',
+            cursor: 'pointer', color: T.inkSoft, fontSize: 10,
+            fontFamily: fontEN, letterSpacing: '0.05em'
+          }}>
+            <Lock size={10} />
+            {dleft !== null ? `${dleft}d unlocked · lock now` : 'lock'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <button onClick={() => setDate(addDays(date, -1))} style={navBtn}><ChevronLeft size={18} /></button>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <div style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: 16, color: T.ink }}>{k.long}</div>
+            <div style={{ fontFamily: fontEN, fontSize: 12, color: T.inkFaint, fontStyle: 'italic', marginTop: 1 }}>
+              {k.day}{isToday && <span style={{ color: T.accent, fontWeight: 600 }}> · today</span>}
+            </div>
+          </div>
+          <button onClick={() => !isToday && setDate(addDays(date, 1))} disabled={isToday} style={{ ...navBtn, opacity: isToday ? 0.3 : 1, cursor: isToday ? 'not-allowed' : 'pointer' }}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, background: T.bg, borderRadius: 12, padding: 4 }}>
+          {[['today', '오늘'], ['week', '주간'], ['month', '월간'], ['history', '기록']].map(([k2, label]) => (
+            <button key={k2} onClick={() => setView(k2)} style={{
+              flex: 1, padding: '8px 10px', borderRadius: 9, border: 'none',
+              background: view === k2 ? T.cardWhite : 'transparent',
+              color: view === k2 ? T.accent : T.inkSoft,
+              fontWeight: view === k2 ? 600 : 500,
+              fontSize: 13, cursor: 'pointer',
+              fontFamily: fontBody,
+              boxShadow: view === k2 ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              transition: 'all 0.15s'
+            }}>{label}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Today View ============
+function TodayView({ dayData, dateKey, updateDay }) {
+  const totalT = dayData.tasks.length;
+  const compT = dayData.tasks.filter(t => t.completed).length;
+  const hasGoal = dayData.oneGoal.text.trim() !== '';
+  const goalDone = hasGoal && dayData.oneGoal.completed;
+  const totalItems = totalT + (hasGoal ? 1 : 0);
+  const compItems = compT + (goalDone ? 1 : 0);
+  const pct = totalItems === 0 ? 0 : Math.round(compItems / totalItems * 100);
+
+  const u = (fn) => updateDay(dateKey, fn);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
+      <ProgressGauge pct={pct} done={compItems} total={totalItems} goalDone={goalDone} hasGoal={hasGoal} />
+
+      <OneGoalCard
+        goal={dayData.oneGoal}
+        onSetText={(text) => u(d => ({ ...d, oneGoal: { ...d.oneGoal, text } }))}
+        onToggle={() => u(d => ({ ...d, oneGoal: { ...d.oneGoal, completed: !d.oneGoal.completed } }))}
+      />
+
+      <TaskList
+        tasks={dayData.tasks}
+        locked={!goalDone}
+        onAdd={(text) => { if (text.trim()) u(d => ({ ...d, tasks: [...d.tasks, { id: Date.now() + '', text: text.trim(), completed: false }] })); }}
+        onToggle={(id) => u(d => ({ ...d, tasks: d.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) }))}
+        onRemove={(id) => u(d => ({ ...d, tasks: d.tasks.filter(t => t.id !== id) }))}
+      />
+
+      <InsightCard insight={dayData.insight} onSet={(text) => u(d => ({ ...d, insight: text }))} />
+      <JournalCard journal={dayData.journal} onSet={(text) => u(d => ({ ...d, journal: text }))} />
+
+      <ListSection title="잘한 것 / 발견" subtitle="wins" items={dayData.wins} color={T.success} icon={<Trophy size={14} color={T.success} />}
+        onAdd={(text) => u(d => ({ ...d, wins: [...d.wins, text] }))}
+        onRemove={(i) => u(d => ({ ...d, wins: d.wins.filter((_, idx) => idx !== i) }))} />
+      <ListSection title="병목 / 막힘" subtitle="blockers" items={dayData.blockers} color={T.rose} icon={<AlertCircle size={14} color={T.rose} />}
+        onAdd={(text) => u(d => ({ ...d, blockers: [...d.blockers, text] }))}
+        onRemove={(i) => u(d => ({ ...d, blockers: d.blockers.filter((_, idx) => idx !== i) }))} />
+      <ListSection title="사고의 변화" subtitle="shifts" items={dayData.shifts} color={T.accent} icon={<TrendingUp size={14} color={T.accent} />}
+        onAdd={(text) => u(d => ({ ...d, shifts: [...d.shifts, text] }))}
+        onRemove={(i) => u(d => ({ ...d, shifts: d.shifts.filter((_, idx) => idx !== i) }))} />
+    </div>
+  );
+}
+
+// ============ Progress Gauge ============
+function ProgressGauge({ pct, done, total, goalDone, hasGoal }) {
+  return (
+    <div style={{ ...cardStyle, padding: 18, background: `linear-gradient(135deg, ${T.cardWhite}, ${T.card})` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div>
+          <div style={subEN}>Today's Progress</div>
+          <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, color: T.ink, marginTop: 2 }}>오늘의 진행률</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: fontEN, fontSize: 38, fontWeight: 600, color: pct === 100 ? T.success : T.accent, lineHeight: 1, fontStyle: pct === 100 ? 'italic' : 'normal' }}>
+            {pct}<span style={{ fontSize: 18 }}>%</span>
+          </div>
+          <div style={{ fontSize: 11, color: T.inkFaint, marginTop: 4 }}>{done} / {total} 완료</div>
+        </div>
+      </div>
+      <div style={{ height: 12, background: T.borderSoft, borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', width: `${pct}%`,
+          background: pct === 100 ? `linear-gradient(90deg, ${T.success}, #9CC09A)` : `linear-gradient(90deg, ${T.accent}, ${T.accentDeep})`,
+          borderRadius: 999, transition: 'width 0.5s ease'
+        }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 11, color: T.inkFaint }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {hasGoal ? (goalDone ? <Unlock size={11} color={T.success} /> : <Lock size={11} color={T.accent} />) : <Circle size={11} />}
+          핵심 목표 {hasGoal ? (goalDone ? '완료' : '미완료') : '미설정'}
+        </span>
+        <span style={{ fontFamily: fontEN, fontStyle: 'italic' }}>{pct === 100 ? '✓ all clear' : pct === 0 ? 'just starting' : 'in progress'}</span>
+      </div>
+    </div>
+  );
+}
+
+// ============ One Goal Card ============
+function OneGoalCard({ goal, onSetText, onToggle }) {
+  const [editing, setEditing] = useState(!goal.text);
+  const [draft, setDraft] = useState(goal.text);
+
+  useEffect(() => { setDraft(goal.text); if (!goal.text) setEditing(true); else setEditing(false); }, [goal.text]);
+
+  const hasText = goal.text.trim() !== '';
+  const done = hasText && goal.completed;
+
+  function save() {
+    if (draft.trim()) {
+      onSetText(draft.trim());
+      setEditing(false);
+    }
+  }
+
+  return (
+    <div style={{ ...cardStyle, borderLeft: `4px solid ${done ? T.success : T.accent}`, background: done ? T.successSoft : T.card, transition: 'all 0.3s' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        {done ? <Unlock size={14} color={T.success} /> : <Lock size={14} color={T.accent} />}
+        <div style={{ ...subEN, color: done ? T.success : T.accent, fontWeight: 600, margin: 0 }}>The One Goal</div>
+        <div style={{ marginLeft: 'auto', fontSize: 10, color: T.inkFaint, fontStyle: 'italic', fontFamily: fontEN }}>must clear first</div>
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 17, fontWeight: 700, marginBottom: 12, color: T.ink }}>오늘 반드시 끝내야 할 단 하나</div>
+
+      {editing ? (
+        <React.Fragment>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
+            placeholder="가장 중요한 단 하나를 적으세요. 이걸 끝내야 다음 태스크가 활성화됩니다."
+            style={{ width: '100%', minHeight: 80, padding: 12, border: `1px solid ${T.border}`, borderRadius: 9, background: T.cardWhite, color: T.ink, fontSize: 14, fontFamily: fontBody, lineHeight: 1.7, resize: 'vertical', outline: 'none' }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button onClick={save} style={primaryBtn} disabled={!draft.trim()}>저장</button>
+            {hasText && <button onClick={() => { setDraft(goal.text); setEditing(false); }} style={ghostBtn}>취소</button>}
+          </div>
+        </React.Fragment>
+      ) : (
+        <React.Fragment>
+          <div style={{ fontSize: 15, lineHeight: 1.7, color: T.ink, marginBottom: 16, fontWeight: 500, padding: '10px 12px', background: T.cardWhite, borderRadius: 8, borderLeft: `2px solid ${done ? T.success : T.accentSoft}` }}>
+            {goal.text}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={onToggle} style={{
+              flex: 1, padding: '13px 16px',
+              background: done ? T.success : T.accent, color: '#fff', border: 'none', borderRadius: 10,
+              fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              fontFamily: fontBody, transition: 'all 0.2s',
+              boxShadow: done ? '0 2px 8px rgba(123,166,121,0.25)' : '0 2px 8px rgba(212,130,63,0.25)'
+            }}>
+              {done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+              {done ? '완료 — 다음 태스크 잠금 해제' : '완료로 표시'}
+            </button>
+            <button onClick={() => setEditing(true)} style={ghostBtn}>수정</button>
+          </div>
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+// ============ Task List ============
+function TaskList({ tasks, locked, onAdd, onToggle, onRemove }) {
+  const [draft, setDraft] = useState('');
+  return (
+    <div style={{ ...cardStyle, opacity: locked ? 0.55 : 1, transition: 'opacity 0.3s' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <ListChecks size={14} color={T.accent} />
+        <div style={{ ...subEN, margin: 0 }}>Other Tasks</div>
+        {locked && (
+          <div style={{ marginLeft: 'auto', fontSize: 11, color: T.accent, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic', fontFamily: fontEN }}>
+            <Lock size={10} /> locked
+          </div>
+        )}
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, marginBottom: 14, color: T.ink }}>그 외 보조 태스크</div>
+
+      {locked && tasks.length === 0 && (
+        <div style={{ fontSize: 12, color: T.inkFaint, fontStyle: 'italic', textAlign: 'center', padding: '12px', background: T.bg, borderRadius: 8, marginBottom: 12 }}>
+          핵심 목표를 먼저 완료하세요
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        {tasks.map(t => (
+          <div key={t.id} style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+            background: t.completed ? T.successSoft : T.cardWhite,
+            border: `1px solid ${t.completed ? T.successSoft : T.border}`, borderRadius: 9
+          }}>
+            <button onClick={() => !locked && onToggle(t.id)} disabled={locked}
+              style={{ background: 'transparent', border: 'none', cursor: locked ? 'not-allowed' : 'pointer', padding: 0, display: 'flex' }}>
+              {t.completed ? <CheckCircle2 size={20} color={T.success} /> : <Circle size={20} color={T.inkFaint} />}
+            </button>
+            <div style={{ flex: 1, fontSize: 14, textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? T.inkFaint : T.ink, lineHeight: 1.5 }}>
+              {t.text}
+            </div>
+            <button onClick={() => onRemove(t.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.inkFaint, padding: 4, display: 'flex' }}>
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim()) { onAdd(draft); setDraft(''); } }}
+          placeholder="새 태스크..." disabled={locked}
+          style={{ flex: 1, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 9, background: locked ? T.bg : T.cardWhite, fontSize: 14, outline: 'none', fontFamily: fontBody, color: T.ink }} />
+        <button onClick={() => { if (draft.trim()) { onAdd(draft); setDraft(''); } }} disabled={locked || !draft.trim()}
+          style={{ background: T.accentSoft, color: T.accentDeep, border: 'none', borderRadius: 9, padding: '0 14px', cursor: locked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Plus size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Insight Card ============
+function InsightCard({ insight, onSet }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(insight);
+  useEffect(() => { setDraft(insight); }, [insight]);
+  return (
+    <div style={{ ...cardStyle, background: `linear-gradient(135deg, ${T.accentSoft}33, ${T.warnSoft}33)` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Quote size={14} color={T.accent} />
+        <div style={{ ...subEN, color: T.accent, margin: 0 }}>One Line Insight</div>
+        {!editing && (
+          <button onClick={() => setEditing(true)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: T.inkFaint, fontSize: 11, cursor: 'pointer', fontFamily: fontEN, fontStyle: 'italic' }}>edit</button>
+        )}
+      </div>
+      {editing ? (
+        <React.Fragment>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { onSet(draft); setEditing(false); } }}
+            placeholder="오늘의 한 줄 통찰"
+            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.cardWhite, fontSize: 15, outline: 'none', fontFamily: fontDisplay, fontWeight: 500 }} autoFocus />
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button onClick={() => { onSet(draft); setEditing(false); }} style={{ ...primaryBtn, padding: '6px 12px', fontSize: 12 }}>저장</button>
+            <button onClick={() => { setDraft(insight); setEditing(false); }} style={{ ...ghostBtn, padding: '6px 12px', fontSize: 12 }}>취소</button>
+          </div>
+        </React.Fragment>
+      ) : (
+        insight ? (
+          <div style={{ fontFamily: fontDisplay, fontSize: 17, fontWeight: 700, color: T.ink, lineHeight: 1.55, fontStyle: 'italic' }}>"{insight}"</div>
+        ) : (
+          <button onClick={() => setEditing(true)} style={{ background: 'transparent', border: `1px dashed ${T.border}`, padding: '12px', borderRadius: 8, width: '100%', color: T.inkFaint, fontStyle: 'italic', cursor: 'pointer', fontFamily: fontBody, fontSize: 13 }}>
+            + 오늘의 한 줄 통찰 추가
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+// ============ Journal Card ============
+function JournalCard({ journal, onSet }) {
+  const [draft, setDraft] = useState(journal);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => { setDraft(journal); setDirty(false); }, [journal]);
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Sparkles size={14} color={T.accent} />
+        <div style={{ ...subEN, margin: 0 }}>Journal</div>
+        {dirty && (
+          <button onClick={() => { onSet(draft); setDirty(false); }} style={{ marginLeft: 'auto', ...primaryBtn, padding: '4px 10px', fontSize: 11 }}>저장</button>
+        )}
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>오늘의 회고</div>
+      <textarea value={draft}
+        onChange={(e) => { setDraft(e.target.value); setDirty(e.target.value !== journal); }}
+        onBlur={() => { if (dirty) { onSet(draft); setDirty(false); } }}
+        placeholder="오늘 어떤 생각이 들었는지, 무엇을 발견했는지, 어디서 막혔는지 자유롭게..."
+        style={{ width: '100%', minHeight: 110, padding: 12, border: `1px solid ${T.border}`, borderRadius: 9, background: T.cardWhite, color: T.ink, fontSize: 14, fontFamily: fontBody, lineHeight: 1.75, resize: 'vertical', outline: 'none' }} />
+    </div>
+  );
+}
+
+// ============ List Section ============
+function ListSection({ title, subtitle, items, color, icon, onAdd, onRemove }) {
+  const [draft, setDraft] = useState('');
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        {icon}
+        <div style={{ ...subEN, color, margin: 0 }}>{subtitle}</div>
+        {items.length > 0 && (
+          <div style={{ marginLeft: 'auto', fontSize: 11, color: T.inkFaint, fontFamily: fontEN, fontStyle: 'italic' }}>{items.length}</div>
+        )}
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 700, marginBottom: 10, color: T.ink }}>{title}</div>
+
+      {items.length === 0 && (
+        <div style={{ fontSize: 12, color: T.inkFaint, fontStyle: 'italic', padding: '8px 0' }}>아직 비어 있음</div>
+      )}
+      {items.map((item, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 0', borderBottom: i < items.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
+          <div style={{ width: 5, height: 5, borderRadius: 999, background: color, marginTop: 9, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.65, color: T.inkSoft }}>{item}</div>
+          <button onClick={() => onRemove(i)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.inkFaint, padding: 2, display: 'flex' }}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim()) { onAdd(draft.trim()); setDraft(''); } }}
+          placeholder="추가..."
+          style={{ flex: 1, padding: '8px 10px', border: `1px solid ${T.border}`, borderRadius: 7, background: T.cardWhite, fontSize: 13, outline: 'none', fontFamily: fontBody, color: T.ink }} />
+        <button onClick={() => { if (draft.trim()) { onAdd(draft.trim()); setDraft(''); } }} disabled={!draft.trim()}
+          style={{ background: T.accentSoft, color: T.accentDeep, border: 'none', borderRadius: 7, padding: '0 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Summary Logic ============
+function buildSummary(data, keys) {
+  const list = keys.map(k => ({ key: k, day: data[k] || null })).filter(x => x.day);
+  const recorded = list.filter(x => x.day && (x.day.oneGoal.text.trim() || x.day.tasks.length > 0 || x.day.journal.trim() || x.day.wins.length || x.day.blockers.length || x.day.shifts.length));
+
+  const goalsSet = recorded.filter(x => x.day.oneGoal.text.trim());
+  const goalsDone = goalsSet.filter(x => x.day.oneGoal.completed);
+
+  const allTasks = [];
+  recorded.forEach(x => { x.day.tasks.forEach(t => allTasks.push({ ...t, key: x.key })); });
+  const completedTasks = allTasks.filter(t => t.completed);
+  const pendingTasks = allTasks.filter(t => !t.completed);
+
+  const allWins = []; const allBlockers = []; const allShifts = []; const allInsights = [];
+  recorded.forEach(x => {
+    x.day.wins.forEach(w => allWins.push({ text: w, key: x.key }));
+    x.day.blockers.forEach(b => allBlockers.push({ text: b, key: x.key }));
+    x.day.shifts.forEach(s => allShifts.push({ text: s, key: x.key }));
+    if (x.day.insight && x.day.insight.trim()) allInsights.push({ text: x.day.insight, key: x.key });
+  });
+
+  return {
+    totalDays: keys.length,
+    recordedCount: recorded.length,
+    goalsSetCount: goalsSet.length,
+    goalsDoneCount: goalsDone.length,
+    goalCompletionRate: goalsSet.length === 0 ? 0 : Math.round(goalsDone.length / goalsSet.length * 100),
+    allTasks, completedTasks, pendingTasks,
+    taskRate: allTasks.length === 0 ? 0 : Math.round(completedTasks.length / allTasks.length * 100),
+    allWins, allBlockers, allShifts, allInsights,
+    completedGoals: goalsDone.map(x => ({ text: x.day.oneGoal.text, key: x.key })),
+    incompleteGoals: goalsSet.filter(x => !x.day.oneGoal.completed).map(x => ({ text: x.day.oneGoal.text, key: x.key })),
+    recordedRate: keys.length === 0 ? 0 : Math.round(recorded.length / keys.length * 100)
+  };
+}
+
+// ============ Summary View ============
+function SummaryView({ data, keys, label, range, period, setDate }) {
+  const s = useMemo(() => buildSummary(data, keys), [data, keys]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
+      <div style={{ ...cardStyle, background: `linear-gradient(135deg, ${T.cardWhite}, ${T.card})` }}>
+        <div style={{ ...subEN, color: T.accent, margin: 0 }}>{label} Summary</div>
+        <div style={{ fontFamily: fontDisplay, fontSize: 24, fontWeight: 700, marginTop: 6, marginBottom: 4, color: T.ink }}>{period} 요약</div>
+        <div style={{ fontFamily: fontEN, fontSize: 13, fontStyle: 'italic', color: T.inkFaint }}>{range}</div>
+        {s.recordedCount === 0 && (
+          <div style={{ marginTop: 12, padding: 12, background: T.bg, borderRadius: 8, fontSize: 13, color: T.inkFaint, textAlign: 'center', fontStyle: 'italic' }}>
+            이 기간에 아직 기록이 없습니다
+          </div>
+        )}
+      </div>
+
+      {s.recordedCount > 0 && (
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Flame size={14} color={T.accent} />
+            <div style={{ ...subEN, margin: 0 }}>Key Metrics</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Metric label="The One Goal" sub={`${s.goalsDoneCount}/${s.goalsSetCount}일`}
+              value={`${s.goalCompletionRate}%`} accent={s.goalCompletionRate >= 70 ? T.success : s.goalCompletionRate >= 40 ? T.warn : T.rose} />
+            <Metric label="태스크 완료율" sub={`${s.completedTasks.length}/${s.allTasks.length}건`}
+              value={`${s.taskRate}%`} accent={T.accent} />
+            <Metric label="기록 일관성" sub={`${s.totalDays}일 중`}
+              value={`${s.recordedCount}일`} accent={T.accentDeep} />
+            <Metric label="총 회고 항목" sub="잘한것+병목+변화"
+              value={s.allWins.length + s.allBlockers.length + s.allShifts.length} accent={T.inkSoft} />
+          </div>
+        </div>
+      )}
+
+      {s.recordedCount > 0 && <AutoDiagnosis summary={s} />}
+
+      {s.completedGoals.length > 0 && (
+        <SummaryList title="완료한 핵심 목표" subtitle="completed goals"
+          items={s.completedGoals.map(g => ({ text: g.text, meta: formatKorean(g.key).short, key: g.key }))}
+          color={T.success} icon={<CheckCircle2 size={14} color={T.success} />} setDate={setDate} />
+      )}
+      {s.incompleteGoals.length > 0 && (
+        <SummaryList title="미완료된 핵심 목표" subtitle="missed goals"
+          items={s.incompleteGoals.map(g => ({ text: g.text, meta: formatKorean(g.key).short, key: g.key }))}
+          color={T.warn} icon={<AlertCircle size={14} color={T.warn} />} setDate={setDate} />
+      )}
+
+      {s.pendingTasks.length > 0 && (
+        <SummaryList title="미완료 태스크 (이월 필요)" subtitle="pending tasks"
+          items={s.pendingTasks.map(t => ({ text: t.text, meta: formatKorean(t.key).short, key: t.key }))}
+          color={T.rose} icon={<Circle size={14} color={T.rose} />} setDate={setDate} />
+      )}
+
+      {s.completedTasks.length > 0 && (
+        <SummaryList title="완료한 태스크" subtitle="done tasks"
+          items={s.completedTasks.map(t => ({ text: t.text, meta: formatKorean(t.key).short, key: t.key }))}
+          color={T.success} icon={<CheckCircle2 size={14} color={T.success} />} setDate={setDate} collapsible />
+      )}
+
+      <SummaryList title="잘한 것 / 발견" subtitle="wins"
+        items={s.allWins.map(w => ({ text: w.text, meta: formatKorean(w.key).short, key: w.key }))}
+        color={T.success} icon={<Trophy size={14} color={T.success} />} emptyText="아직 기록 없음" setDate={setDate} />
+
+      <SummaryList title="반복된 병목" subtitle="blockers"
+        items={s.allBlockers.map(b => ({ text: b.text, meta: formatKorean(b.key).short, key: b.key }))}
+        color={T.rose} icon={<AlertCircle size={14} color={T.rose} />} emptyText="아직 기록 없음" setDate={setDate} />
+
+      <SummaryList title="사고의 변화" subtitle="shifts"
+        items={s.allShifts.map(sh => ({ text: sh.text, meta: formatKorean(sh.key).short, key: sh.key }))}
+        color={T.accent} icon={<TrendingUp size={14} color={T.accent} />} emptyText="아직 기록 없음" setDate={setDate} />
+
+      {s.allInsights.length > 0 && (
+        <SummaryList title="이 기간의 통찰들" subtitle="insights"
+          items={s.allInsights.map(i => ({ text: `"${i.text}"`, meta: formatKorean(i.key).short, key: i.key }))}
+          color={T.accentDeep} icon={<Quote size={14} color={T.accentDeep} />} setDate={setDate} />
+      )}
+    </div>
+  );
+}
+
+// ============ Auto Diagnosis ============
+function AutoDiagnosis({ summary: s }) {
+  const diagnoses = [];
+
+  if (s.goalCompletionRate >= 80) {
+    diagnoses.push({ type: 'win', text: `핵심 목표 달성률 ${s.goalCompletionRate}% — 매우 우수. 이 페이스를 유지하세요.` });
+  } else if (s.goalCompletionRate >= 50) {
+    diagnoses.push({ type: 'mid', text: `핵심 목표 달성률 ${s.goalCompletionRate}% — 절반 이상. 미완료 목표의 공통 원인을 찾으세요.` });
+  } else if (s.goalsSetCount > 0) {
+    diagnoses.push({ type: 'warn', text: `핵심 목표 달성률 ${s.goalCompletionRate}% — 목표가 너무 크거나, 일과의 우선순위 충돌 가능성.` });
+  }
+
+  if (s.allTasks.length >= 5) {
+    if (s.taskRate >= 70) {
+      diagnoses.push({ type: 'win', text: `태스크 완료율 ${s.taskRate}% — 실행력이 높습니다.` });
+    } else if (s.taskRate < 40) {
+      diagnoses.push({ type: 'warn', text: `태스크 완료율 ${s.taskRate}% — 미완료 ${s.pendingTasks.length}건. 이월 vs 폐기 결정이 필요합니다.` });
+    }
+  }
+
+  if (s.pendingTasks.length >= 7) {
+    diagnoses.push({ type: 'warn', text: `미완료 태스크 ${s.pendingTasks.length}건 누적 — 매일 너무 많이 적고 있을 가능성. 하루 3~5개로 축소 권장.` });
+  }
+
+  if (s.recordedRate < 50 && s.totalDays > 1) {
+    diagnoses.push({ type: 'warn', text: `기록 일관성 ${s.recordedRate}% — 매일 1분이라도 기록하는 루틴이 필요.` });
+  } else if (s.recordedRate >= 80 && s.totalDays > 3) {
+    diagnoses.push({ type: 'win', text: `기록 일관성 ${s.recordedRate}% — 매일 기록 습관이 자리잡고 있습니다.` });
+  }
+
+  if (s.allBlockers.length > 0 && s.allWins.length > 0) {
+    const ratio = s.allWins.length / (s.allBlockers.length + s.allWins.length);
+    if (ratio < 0.3) {
+      diagnoses.push({ type: 'warn', text: `병목 대비 잘한 것 비율 ${Math.round(ratio * 100)}% — 작은 진전도 의식적으로 기록하세요.` });
+    } else if (ratio > 0.6) {
+      diagnoses.push({ type: 'win', text: `잘한 것 비율 ${Math.round(ratio * 100)}% — 긍정 패턴이 강하게 형성됨.` });
+    }
+  }
+
+  if (s.allShifts.length === 0 && s.recordedCount >= 3) {
+    diagnoses.push({ type: 'mid', text: '사고 변화 기록이 비어 있음 — 이 기간 어떤 관점이 바뀌었는지 의식적으로 적어보세요.' });
+  } else if (s.allShifts.length >= 3) {
+    diagnoses.push({ type: 'win', text: `사고 변화 ${s.allShifts.length}건 — 메타인지가 활발하게 작동 중.` });
+  }
+
+  if (s.allBlockers.length >= 5) {
+    diagnoses.push({ type: 'mid', text: `병목 ${s.allBlockers.length}건 누적 — 가장 자주 등장하는 병목 1개를 다음 핵심 목표로 분리하세요.` });
+  }
+
+  if (diagnoses.length === 0) {
+    diagnoses.push({ type: 'mid', text: '데이터가 더 쌓이면 자동 진단이 더 정확해집니다.' });
+  }
+
+  const colorMap = {
+    win: { bg: T.successSoft, border: T.success, icon: <Trophy size={13} color={T.success} /> },
+    mid: { bg: T.warnSoft, border: T.warn, icon: <Target size={13} color={T.warn} /> },
+    warn: { bg: T.roseSoft, border: T.rose, icon: <AlertCircle size={13} color={T.rose} /> },
+  };
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <Sparkles size={14} color={T.accent} />
+        <div style={{ ...subEN, margin: 0 }}>Auto Diagnosis</div>
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>자동 진단</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {diagnoses.map((d, i) => {
+          const c = colorMap[d.type];
+          return (
+            <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: c.bg, borderLeft: `3px solid ${c.border}`, borderRadius: 7, alignItems: 'flex-start' }}>
+              <div style={{ marginTop: 3 }}>{c.icon}</div>
+              <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: T.ink }}>{d.text}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============ Summary List ============
+function SummaryList({ title, subtitle, items, color, icon, emptyText, setDate, collapsible }) {
+  const [collapsed, setCollapsed] = useState(collapsible || false);
+  if (items.length === 0 && !emptyText) return null;
+  const visible = collapsed ? items.slice(0, 3) : items;
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        {icon}
+        <div style={{ ...subEN, color, margin: 0 }}>{subtitle}</div>
+        {items.length > 0 && (
+          <div style={{ marginLeft: 'auto', fontFamily: fontEN, fontSize: 12, fontStyle: 'italic', color: T.inkFaint }}>{items.length}건</div>
+        )}
+      </div>
+      <div style={{ fontFamily: fontDisplay, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{title}</div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: T.inkFaint, fontStyle: 'italic' }}>{emptyText}</div>
+      ) : (
+        <React.Fragment>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {visible.map((item, i) => (
+              <div key={i} onClick={() => setDate && item.key && setDate(item.key)}
+                style={{
+                  display: 'flex', gap: 10, alignItems: 'flex-start',
+                  padding: '9px 4px', borderBottom: i < visible.length - 1 ? `1px dashed ${T.borderSoft}` : 'none',
+                  cursor: setDate && item.key ? 'pointer' : 'default',
+                  borderRadius: 4, transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => { if (setDate && item.key) e.currentTarget.style.background = T.bg; }}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{ width: 5, height: 5, borderRadius: 999, background: color, marginTop: 9, flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: 13, lineHeight: 1.65, color: T.inkSoft }}>{item.text}</div>
+                <div style={{ fontFamily: fontEN, fontSize: 11, color: T.inkFaint, fontStyle: 'italic', marginTop: 2 }}>{item.meta}</div>
+              </div>
+            ))}
+          </div>
+          {collapsible && items.length > 3 && (
+            <button onClick={() => setCollapsed(c => !c)} style={{
+              marginTop: 8, width: '100%', padding: '6px',
+              background: 'transparent', border: `1px solid ${T.borderSoft}`,
+              borderRadius: 6, fontSize: 11, color: T.inkFaint,
+              cursor: 'pointer', fontFamily: fontEN, fontStyle: 'italic'
+            }}>
+              {collapsed ? `+ ${items.length - 3} more` : 'collapse'}
+            </button>
+          )}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+// ============ Metric ============
+function Metric({ label, value, sub, accent }) {
+  return (
+    <div style={{ padding: '12px 14px', background: T.cardWhite, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+      <div style={{ fontSize: 11, color: T.inkFaint, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: fontEN, fontSize: 22, fontWeight: 600, color: accent || T.ink, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 10, color: T.inkFaint, marginTop: 4, fontStyle: 'italic', fontFamily: fontEN }}>{sub}</div>
+    </div>
+  );
+}
+
+// ============ Week / Month ============
+function WeekView({ data, fromKey, setDate }) {
+  const keys = getRecentKeys(7, fromKey);
+  const range = `${formatKorean(keys[6]).full} – ${formatKorean(keys[0]).full}`;
+  return <SummaryView data={data} keys={keys} label="Week" period="주간" range={range} setDate={setDate} />;
+}
+
+function MonthView({ data, fromKey, setDate }) {
+  const keys = getMonthKeys(fromKey);
+  const d = parseKey(fromKey);
+  const range = `${d.getFullYear()}년 ${d.getMonth() + 1}월 (${keys.length}일)`;
+  const period = `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+  return <SummaryView data={data} keys={keys} label="Month" period={period} range={range} setDate={setDate} />;
+}
+
+// ============ History ============
+function HistoryView({ data, setDate }) {
+  const keys = Object.keys(data).sort().reverse();
+
+  if (keys.length === 0) {
+    return (
+      <div style={{ ...cardStyle, marginTop: 16, textAlign: 'center', padding: '40px 24px' }}>
+        <CalIcon size={32} color={T.inkFaint} style={{ display: 'block', margin: '0 auto 12px' }} />
+        <div style={{ fontFamily: fontDisplay, fontSize: 16, fontWeight: 700, marginBottom: 4 }}>아직 기록이 없습니다</div>
+        <div style={{ fontSize: 13, color: T.inkFaint }}>오늘 첫 기록을 시작하세요</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ ...cardStyle }}>
+        <div style={{ ...subEN, margin: 0 }}>All Records</div>
+        <div style={{ fontFamily: fontDisplay, fontSize: 18, fontWeight: 700, marginTop: 4 }}>전체 기록 ({keys.length}일)</div>
+        <div style={{ fontSize: 12, color: T.inkFaint, fontFamily: fontEN, fontStyle: 'italic', marginTop: 2 }}>tap to view</div>
+      </div>
+
+      {keys.map(k => {
+        const d = data[k];
+        const totalT = d.tasks.length;
+        const compT = d.tasks.filter(t => t.completed).length;
+        const hasGoal = d.oneGoal.text.trim() !== '';
+        const goalDone = hasGoal && d.oneGoal.completed;
+        const total = totalT + (hasGoal ? 1 : 0);
+        const comp = compT + (goalDone ? 1 : 0);
+        const pct = total === 0 ? 0 : Math.round(comp / total * 100);
+        const dKor = formatKorean(k);
+
+        return (
+          <button key={k} onClick={() => setDate(k)} style={{
+            ...cardStyle, cursor: 'pointer', textAlign: 'left',
+            border: `1px solid ${T.border}`, fontFamily: fontBody, transition: 'all 0.15s', width: '100%'
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
+            onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontFamily: fontDisplay, fontWeight: 700, fontSize: 15, color: T.ink }}>{dKor.long}</div>
+                <div style={{ fontSize: 11, color: T.inkFaint, fontFamily: fontEN, fontStyle: 'italic', marginTop: 1 }}>{dKor.day}</div>
+              </div>
+              <div style={{ fontFamily: fontEN, fontSize: 22, fontWeight: 600, color: pct === 100 ? T.success : pct >= 50 ? T.accent : T.inkFaint, lineHeight: 1 }}>
+                {pct}<span style={{ fontSize: 13 }}>%</span>
+              </div>
+            </div>
+            {hasGoal && (
+              <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {goalDone ? <CheckCircle2 size={12} color={T.success} /> : <Lock size={11} color={T.inkFaint} />}
+                <span style={{ flex: 1, textDecoration: goalDone ? 'line-through' : 'none', lineHeight: 1.5, color: goalDone ? T.inkFaint : T.ink }}>
+                  {d.oneGoal.text.length > 60 ? d.oneGoal.text.slice(0, 60) + '...' : d.oneGoal.text}
+                </span>
+              </div>
+            )}
+            <div style={{ marginTop: 10, height: 4, background: T.borderSoft, borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? T.success : T.accent, borderRadius: 999, transition: 'width 0.3s' }} />
+            </div>
+            {(d.tasks.length > 0 || d.wins.length > 0 || d.blockers.length > 0 || d.shifts.length > 0) && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, fontSize: 11, color: T.inkFaint, fontFamily: fontEN, fontStyle: 'italic' }}>
+                {d.tasks.length > 0 && <span>☐ {d.tasks.length}</span>}
+                {d.wins.length > 0 && <span>★ {d.wins.length}</span>}
+                {d.blockers.length > 0 && <span>! {d.blockers.length}</span>}
+                {d.shifts.length > 0 && <span>↻ {d.shifts.length}</span>}
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============ Footer ============
+function Footer() {
+  return (
+    <div style={{ maxWidth: 720, margin: '40px auto 0', padding: '24px 16px 0', textAlign: 'center', borderTop: `1px solid ${T.border}` }}>
+      <div style={{ fontFamily: fontEN, fontStyle: 'italic', fontSize: 12, color: T.inkFaint, letterSpacing: '0.1em' }}>
+        <span style={{ color: T.accent }}>❦</span> for warmrel <span style={{ color: T.accent }}>❦</span>
+      </div>
+      <div style={{ fontSize: 10, color: T.inkFaint, marginTop: 6, letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: fontEN }}>
+        record · zero anxiety · execute · earn
+      </div>
+    </div>
+  );
+}
+
+// ============ Mount ============
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
